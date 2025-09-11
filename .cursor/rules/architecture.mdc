@@ -1,0 +1,24 @@
+---
+description: Regras do projeto
+alwaysApply: true
+---
+
+# Stack Principal
+- Core: NextJS + TypeScript e ModuleCSS
+- Banco de Dados: Supabase
+- Módulos: ESM (import/export), sem CommonJS (require)
+
+# Regras
+- Foco: Escreva ou modifique apenas o código-fonte
+- Sem Comandos: Não inclua comandos de execução (npm run, node, nodemon)
+- Sem Testes: Não gere arquivos de teste, a menos que seja explicitamente solicitado
+- Sem Documentação: Não crie arquivos de documentação (ex: README.md)
+- Não utilize serviceRoleKey no front para segurança, apenas usando API
+- Utilize apenas anonKey para requisições do usuário
+- Não utilize em hipótese alguma TailWind CSS, vamos usar apenas ModuleCSS
+
+# Restrições
+- O arquivo .env existe e contém todas as chaves necessárias, mas você não tem acesso ao seu conteúdo
+- O código deve ser TypeScript estrito. O uso de any deve ser evitado ao máximo
+- O projeto já está rodando; as alterações serão observadas pelo desenvolvedor
+- Para endpoints que não são próprios do usuário, ex: endpoints de pagamento da Stripe, usaremos o "SUPABASE_SERVICE_ROLE_KEY" que está no ".env", enquanto que para as requisições simples do usuário, ex: visualizar informações próprias, podemos usar o "SUPABASE_ANON_KEY"

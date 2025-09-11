@@ -1,0 +1,16 @@
+---
+alwaysApply: false
+---
+#Sobre o projeto
+
+Vou começar agora a produção prática do meu projeto de TCC, o sistema web "Bora duo?", ele é um software para jogadores do jogo League of Legends, me ajude a pensar a nível de banco de dados e como desenvolver com a Stack que eu escolhi e as funcionalidades. Sobre o software: O software vai auxiliar pessoas a encontrarem pessoas para jogar junto, então basicamente pensando um exemplo: Jogador X quer jogar uma partida com seu amigo, mas quer fechar um lobby do modo de jogo Ranqueada Flexível 5v5, ou seja ele cria sua conta no "Bora duo?", configura seu perfil, informando RiotID, Elo(Ranque), Nickname(Como gosta de ser chamado), Nome, DataNascimento, E-mail, Ícone, Campeão favorito, Rotas de preferência, Estilo de jogo(Tags), após isso ele vai pra tela de "Encontrar equipe" ou "Formar time", define oque ele quer achar, ex: 3 players (Quantidade), 1 Player Suporte, 1 Player que pode ser Adc ou Top, e +1 Player Mid, e que ele procura por pessoas que sejam "Tryhard", poderia buscar por pessoas "Amigáveis" se o foco não fosse competitivo, após isso ele define também o nível, "Quero encontrar pessoas que sejam acima de Diamante na modalidade Ranqueada SOLO/DUO, ou/e Esmeralda na modalidade (Flexível), e após definir tudo isso ele Começa o "Matchmaking" que seria a "Queue", onde outros jogadores podem estar buscando lobby para entrarem, com as mesmas preferências, ex: Jogador Y, procura lobby try hard Diamante e joga top, dá queue e acaba caindo no lobby do jogador X, aparece uma tela pra ele "Aceitar ou Recusar" padrão do próprio jogo, e ao aceitar o lobby vai ser formando, até fechar o time, ao fechar, eles podem se convidar pelo próprio jogo e jogarem juntos, pela plataforma eles ainda tem a opção de "Sair da premade", ao finalizar uma premade ele pode avaliar os companheiros individualmente (opcional avaliar), ou até mesmo denúnciar e contar o porque teve uma experiência negativa com aquele jogador, isso criar uma espécie de "avaliação" do player onde podemos filtrar jogadores que conseguem ter boas experiências juntos e más, fazendo uma diferenciação nas próximas formações de equipe. Essa é a ideia do software. 
+
+
+Funcionalidades: 
+- Cadastro de conta / Login ✅
+- Perfil ✅
+- Criar sala (Onde define as preferências de que tipo de player quer encontrar para fechar um lobby)(Etapa antes da Queue) ❌
+- Queue (Fila para encontrar premade) ❌
+- Sair da premade ❌
+- Avaliar companheiros ❌
+- Histórico de premades ❌

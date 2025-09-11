@@ -1,0 +1,45 @@
+{
+  "name": "bora-duo",
+  "version": "1.0.0",
+  "description": "Plataforma do TCC: Matchmaking Inteligente em Jogos Multiplayer Online: Uma proposta para reduzir a exclusão social e promover boas experiências em League of Legends",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "@supabase/ssr": "^0.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.0.0",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AxelCabral/Bora-duo.git"
+  },
+  "keywords": [
+    "League",
+    "of",
+    "Legends",
+    "Matchmaking",
+    "Social"
+  ],
+  "author": "Axel Cabral",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/AxelCabral/Bora-duo/issues"
+  },
+  "homepage": "https://github.com/AxelCabral/Bora-duo#readme"
+}
