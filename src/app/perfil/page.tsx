@@ -1,9 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/AuthProvider'
+import Navbar from '@/components/Navbar'
 import { createClient } from '@/lib/supabase-client'
 import { Profile, LolRole, LolRank } from '@/types/database'
-import Link from 'next/link'
 import styles from './perfil.module.css'
 
 const TIERS = [
@@ -31,7 +31,7 @@ const PLAYSTYLE_TAGS = [
 ]
 
 export default function PerfilPage() {
-  const { user, signOut } = useAuth()
+  const { user } = useAuth()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -155,21 +155,7 @@ export default function PerfilPage() {
 
   return (
     <div className={styles.container}>
-      {/* Header */}
-      <header className={styles.header}>
-        <div className={styles.headerContent}>
-          <Link href="/" className={styles.logo}>
-            <img src="/logo-boraduo.png" alt="Bora Duo Logo" className={styles.logoImage} />
-          </Link>
-          
-          <div className={styles.userInfo}>
-            <span className={styles.userEmail}>{profile?.riot_id}</span>
-            <button onClick={signOut} className={styles.logoutButton}>
-              Sair
-            </button>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       {/* Main Content */}
       <main className={styles.main}>

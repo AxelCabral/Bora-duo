@@ -114,7 +114,7 @@
 }
 
 .error {
-  background: rgba(255, 107, 107, 0.1);
+  background: var(--error-10);
   border: 1px solid var(--error);
   color: var(--error);
   padding: var(--space-md);
@@ -150,7 +150,7 @@
 .field input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(200, 155, 60, 0.2);
+  box-shadow: 0 0 0 2px var(--primary-20);
 }
 
 .field input:disabled {

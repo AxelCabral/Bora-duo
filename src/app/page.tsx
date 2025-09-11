@@ -1,5 +1,6 @@
 'use client'
 import { useAuth } from '@/components/AuthProvider'
+import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 import styles from './page.module.css'
 
@@ -17,31 +18,7 @@ export default function Home() {
 
   return (
     <div className={styles.container}>
-      {/* Header */}
-      <header className={styles.header}>
-        <div className={styles.headerContent}>
-          <Link href="/" className={styles.logo}>
-            <img src="/logo-boraduo.png" alt="Bora Duo Logo" className={styles.logoImage} />
-          </Link>
-          
-          <nav className={styles.nav}>
-            {user ? (
-              <Link href="/perfil" className={styles.navLink}>
-                Meu Perfil
-              </Link>
-            ) : (
-              <>
-                <Link href="/login" className={styles.navLink}>
-                  Entrar
-                </Link>
-                <Link href="/signup" className={styles.navButton}>
-                  Criar Conta
-                </Link>
-              </>
-            )}
-          </nav>
-        </div>
-      </header>
+      <Navbar />
 
       {/* Hero Section */}
       <main className={styles.hero}>
@@ -57,9 +34,14 @@ export default function Home() {
             
             <div className={styles.heroActions}>
               {user ? (
-                <Link href="/perfil" className={styles.primaryButton}>
-                  Configurar Perfil
-                </Link>
+                <>
+                  <Link href="/lobby" className={styles.primaryButton}>
+                    Encontrar Premade
+                  </Link>
+                  <Link href="/perfil" className={styles.secondaryButton}>
+                    Meu Perfil
+                  </Link>
+                </>
               ) : (
                 <>
                   <Link href="/signup" className={styles.primaryButton}>
