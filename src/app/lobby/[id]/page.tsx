@@ -1,11 +1,14 @@
 'use client'
 import { useAuth } from '@/components/AuthProvider'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, use } from 'react'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-client'
 import { Lobby, LobbyMember, Profile, LolRank, GameMode } from '@/types/database'
+import MatchmakingStats from '@/components/MatchmakingStats'
+import MatchNotification from '@/components/MatchNotification'
+import { useMatchmakingDetection } from '@/hooks/useMatchmakingDetection'
 import styles from './lobby.module.css'
 
 interface LobbyWithMembers extends Lobby {
@@ -32,13 +35,208 @@ const GAME_MODE_LABELS: Record<GameMode, string> = {
   aram: 'ARAM'
 }
 
-export default function LobbyDetailsPage({ params }: { params: { id: string } }) {
+const ROLES = ['top', 'jungle', 'mid', 'adc', 'support', 'fill'] as const
+const ROLE_LABELS = {
+  top: 'Top',
+  jungle: 'Jungle', 
+  mid: 'Mid',
+  adc: 'ADC',
+  support: 'Support',
+  fill: 'Fill'
+}
+
+interface EditLobbyModalProps {
+  lobby: LobbyWithMembers
+  onClose: () => void
+  onSave: (updatedLobby: LobbyWithMembers) => void
+}
+
+function EditLobbyModal({ lobby, onClose, onSave }: EditLobbyModalProps) {
+  const [title, setTitle] = useState(lobby.title)
+  const [description, setDescription] = useState(lobby.description || '')
+  const [maxMembers, setMaxMembers] = useState(lobby.max_members)
+  const [requiredRankMin, setRequiredRankMin] = useState(lobby.required_rank_min || '')
+  const [requiredRankMax, setRequiredRankMax] = useState(lobby.required_rank_max || '')
+  const [preferredRoles, setPreferredRoles] = useState<string[]>(lobby.preferred_roles)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleRoleToggle = (role: string) => {
+    setPreferredRoles(prev => 
+      prev.includes(role) 
+        ? prev.filter(r => r !== role)
+        : [...prev, role]
+    )
+  }
+
+  const handleSave = async () => {
+    if (title.trim().length < 3) {
+      setError('O título deve ter pelo menos 3 caracteres')
+      return
+    }
+
+    if (maxMembers < 2 || maxMembers > 5) {
+      setError('O lobby deve ter entre 2 e 5 membros')
+      return
+    }
+
+    setIsSaving(true)
+    setError('')
+
+    try {
+      const supabase = createClient()
+      
+      const { data: updatedLobbyData, error: updateError } = await supabase
+        .from('lobbies')
+        .update({
+          title: title.trim(),
+          description: description.trim() || null,
+          max_members: maxMembers,
+          required_rank_min: requiredRankMin || null,
+          required_rank_max: requiredRankMax || null,
+          preferred_roles: preferredRoles,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', lobby.id)
+        .select()
+        .single()
+
+      if (updateError) throw updateError
+
+      // Atualizar o lobby local
+      onSave({
+        ...lobby,
+        ...updatedLobbyData
+      })
+
+    } catch (err) {
+      console.error('Erro ao salvar lobby:', err)
+      setError('Erro ao salvar as alterações. Tente novamente.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h2>Editar Lobby</h2>
+          <button onClick={onClose} className={styles.closeModal}>✕</button>
+        </div>
+
+        <div className={styles.modalBody}>
+          {error && <div className={styles.error}>{error}</div>}
+
+          <div className={styles.formGroup}>
+            <label>Título *</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Nome do seu lobby"
+              maxLength={100}
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Descrição</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Descreva seu lobby..."
+              rows={3}
+              maxLength={500}
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Máximo de Membros</label>
+            <select
+              value={maxMembers}
+              onChange={(e) => setMaxMembers(Number(e.target.value))}
+            >
+              <option value={2}>2 jogadores</option>
+              <option value={3}>3 jogadores</option>
+              <option value={4}>4 jogadores</option>
+              <option value={5}>5 jogadores</option>
+            </select>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Elo Mínimo</label>
+            <select
+              value={requiredRankMin}
+              onChange={(e) => setRequiredRankMin(e.target.value)}
+            >
+              <option value="">Qualquer</option>
+              {Object.entries(RANK_LABELS).map(([rank, label]) => (
+                <option key={rank} value={rank}>{label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Elo Máximo</label>
+            <select
+              value={requiredRankMax}
+              onChange={(e) => setRequiredRankMax(e.target.value)}
+            >
+              <option value="">Qualquer</option>
+              {Object.entries(RANK_LABELS).map(([rank, label]) => (
+                <option key={rank} value={rank}>{label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Roles Desejadas</label>
+            <div className={styles.roleSelector}>
+              {ROLES.map(role => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => handleRoleToggle(role)}
+                  className={`${styles.roleButton} ${
+                    preferredRoles.includes(role) ? styles.selected : ''
+                  }`}
+                >
+                  {ROLE_LABELS[role]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.modalFooter}>
+          <button onClick={onClose} className={styles.cancelButton}>
+            Cancelar
+          </button>
+          <button 
+            onClick={handleSave}
+            disabled={isSaving}
+            className={styles.saveButton}
+          >
+            {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function LobbyDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: lobbyId } = use(params)
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [lobby, setLobby] = useState<LobbyWithMembers | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [isClosingLobby, setIsClosingLobby] = useState(false)
+  const [isBeingRedirected, setIsBeingRedirected] = useState(false)
+  const [isLeavingLobby, setIsLeavingLobby] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -54,7 +252,7 @@ export default function LobbyDetailsPage({ params }: { params: { id: string } })
     if (user && mounted) {
       loadLobby()
     }
-  }, [user, mounted, params.id])
+  }, [user, mounted, lobbyId])
 
   const loadLobby = async () => {
     try {
@@ -64,30 +262,65 @@ export default function LobbyDetailsPage({ params }: { params: { id: string } })
       const { data: lobbyData, error: lobbyError } = await supabase
         .from('lobbies')
         .select('*')
-        .eq('id', params.id)
-        .single()
+        .eq('id', lobbyId)
+        .maybeSingle()  // ✅ Usar maybeSingle() em vez de single()
 
       if (lobbyError) {
+        throw lobbyError
+      }
+
+      if (!lobbyData) {
         throw new Error('Lobby não encontrado')
       }
 
-      // Carregar membros com perfis
+      // Carregar membros (consulta simplificada)
       const { data: membersData, error: membersError } = await supabase
         .from('lobby_members')
-        .select(`
-          *,
-          profile:profiles(*)
-        `)
-        .eq('lobby_id', params.id)
+        .select('*')  // ✅ Consulta simples sem JOIN
+        .eq('lobby_id', lobbyId)
         .order('joined_at', { ascending: true })
 
       if (membersError) {
-        throw membersError
+        console.warn('Erro ao carregar membros:', membersError)
+        // Continuar mesmo sem membros
+      }
+
+      // Carregar perfis dos membros separadamente para evitar problemas RLS
+      const membersWithProfiles = []
+      if (membersData && membersData.length > 0) {
+        for (const member of membersData) {
+          try {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', member.user_id)
+              .maybeSingle()
+            
+            membersWithProfiles.push({
+              ...member,
+              profile: profileData || { 
+                user_id: member.user_id, 
+                nickname: 'Usuário', 
+                riot_id: null 
+              }
+            })
+          } catch (profileError) {
+            console.warn('Erro ao carregar perfil:', profileError)
+            membersWithProfiles.push({
+              ...member,
+              profile: { 
+                user_id: member.user_id, 
+                nickname: 'Usuário', 
+                riot_id: null 
+              }
+            })
+          }
+        }
       }
 
       setLobby({
         ...lobbyData,
-        members: membersData || []
+        members: membersWithProfiles
       })
 
     } catch (err) {
@@ -98,11 +331,158 @@ export default function LobbyDetailsPage({ params }: { params: { id: string } })
     }
   }
 
-  if (authLoading || !mounted || loading) {
+  const handleCloseLobby = async () => {
+    if (!lobby || !user || isClosingLobby) return
+    
+    // Verificar se é o criador
+    if (lobby.creator_id !== user.id) {
+      alert('Apenas o criador pode fechar o lobby')
+      return
+    }
+
+    const confirmClose = window.confirm(
+      'Tem certeza que deseja fechar este lobby? Esta ação não pode ser desfeita.'
+    )
+
+    if (!confirmClose) return
+
+    setIsClosingLobby(true)
+    
+    try {
+      const supabase = createClient()
+      
+      // Atualizar status do lobby para 'cancelled'
+      const { error: updateError } = await supabase
+        .from('lobbies')
+        .update({ 
+          status: 'cancelled',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', lobbyId)
+
+      if (updateError) {
+        throw updateError
+      }
+
+      // Remover todos os membros do lobby
+      const { error: deleteMembersError } = await supabase
+        .from('lobby_members')
+        .delete()
+        .eq('lobby_id', lobbyId)
+
+      if (deleteMembersError) {
+        console.warn('Erro ao remover membros:', deleteMembersError)
+      }
+
+      // Redirecionar para página de lobbies
+      router.push('/lobby')
+      
+    } catch (err) {
+      console.error('Erro ao fechar lobby:', err)
+      alert('Erro ao fechar o lobby. Tente novamente.')
+    } finally {
+      setIsClosingLobby(false)
+    }
+  }
+
+  // Verificar se o usuário atual é o criador do lobby
+  const isCreator = lobby && user && lobby.creator_id === user.id
+  const canModify = isCreator && lobby?.status === 'waiting'
+
+  // Verificar se o usuário ainda é membro do lobby (detecção de kick)
+  useEffect(() => {
+    if (lobby && user && !isCreator && !isBeingRedirected) {
+      const isMember = lobby.members.some(member => member.user_id === user.id)
+      if (!isMember) {
+        console.log('🚪 Usuário foi removido do lobby, redirecionando para queue...')
+        setIsBeingRedirected(true)
+        router.push('/lobby/queue')
+        return
+      }
+    }
+  }, [lobby, user, isCreator, router, isBeingRedirected])
+
+  // Hook de detecção de matchmaking para criadores de lobby
+  const { 
+    potentialMatches, 
+    acceptMatch, 
+    rejectMatch, 
+    isLoading: isMatchmakingLoading 
+  } = useMatchmakingDetection(user?.id || null, Boolean(isCreator && lobby?.status === 'waiting' && lobby?.current_members < lobby?.max_members))
+
+  // Handlers para matches
+  const handleAcceptMatch = async (matchId: string) => {
+    try {
+      await acceptMatch(matchId)
+      // Recarregar lobby para mostrar novo membro
+      await loadLobby()
+    } catch (err) {
+      console.error('Erro ao aceitar match:', err)
+      setError('Erro ao aceitar o jogador. Tente novamente.')
+    }
+  }
+
+  const handleRejectMatch = async (matchId: string) => {
+    try {
+      await rejectMatch(matchId)
+    } catch (err) {
+      console.error('Erro ao rejeitar match:', err)
+    }
+  }
+
+  const handleKickMember = async (userId: string) => {
+    if (!lobby || !isCreator) return
+    
+    try {
+      const supabase = createClient()
+      
+      // Remover o membro do lobby
+      const { error } = await supabase
+        .from('lobby_members')
+        .delete()
+        .eq('lobby_id', lobby.id)
+        .eq('user_id', userId)
+
+      if (error) throw error
+
+      // Recarregar lobby para mostrar mudanças
+      await loadLobby()
+      
+    } catch (err) {
+      console.error('Erro ao remover membro:', err)
+      setError('Erro ao remover membro do lobby.')
+    }
+  }
+
+  const handleLeaveLobby = async () => {
+    if (!lobby || !user || isCreator) return
+    
+    setIsLeavingLobby(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('lobby_members')
+        .delete()
+        .eq('lobby_id', lobby.id)
+        .eq('user_id', user.id)
+      
+      if (error) throw error
+      
+      console.log('🚪 Usuário saiu do lobby com sucesso')
+      router.push('/lobby/queue')
+    } catch (err) {
+      console.error('Erro ao sair do lobby:', err)
+      setError('Erro ao sair do lobby. Tente novamente.')
+    } finally {
+      setIsLeavingLobby(false)
+    }
+  }
+
+  if (authLoading || !mounted || loading || isBeingRedirected) {
     return (
       <div className={styles.loading}>
         <div className={styles.spinner}></div>
-        <p>Carregando lobby...</p>
+        <p>{isBeingRedirected ? 'Você foi removido do lobby...' : 'Carregando lobby...'}</p>
       </div>
     )
   }
@@ -125,7 +505,6 @@ export default function LobbyDetailsPage({ params }: { params: { id: string } })
     )
   }
 
-  const isCreator = lobby.creator_id === user.id
   const isMember = lobby.members.some(member => member.user_id === user.id)
   // No novo sistema, usuários não podem entrar manualmente - apenas via matchmaking
 
@@ -154,6 +533,60 @@ export default function LobbyDetailsPage({ params }: { params: { id: string } })
                   </span>
                 </div>
               </div>
+
+              {/* Botões de ação para o criador - sempre visível */}
+              {isCreator && (
+                <div className={styles.creatorActions}>
+                  {canModify && (
+                    <button 
+                      onClick={() => setShowEditModal(true)}
+                      className={styles.editButton}
+                      title="Editar Lobby"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="m18.5 2.5 a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Editar
+                    </button>
+                  )}
+                  
+                  {lobby.status !== 'cancelled' && isCreator && (
+                    <button 
+                      onClick={handleCloseLobby}
+                      disabled={isClosingLobby}
+                      className={styles.closeButton}
+                      title="Fechar Lobby"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                        <path d="m15 9-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="m9 9 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      {isClosingLobby ? 'Fechando...' : 'Fechar'}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Botão para membros saírem do lobby */}
+              {!isCreator && lobby.status !== 'cancelled' && (
+                <div className={styles.memberActions}>
+                  <button 
+                    onClick={handleLeaveLobby}
+                    disabled={isLeavingLobby}
+                    className={styles.leaveButton}
+                    title="Sair do Lobby"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <polyline points="16,17 21,12 16,7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    {isLeavingLobby ? 'Saindo...' : 'Sair do Lobby'}
+                  </button>
+                </div>
+              )}
             </div>
 
             {lobby.description && (
@@ -197,6 +630,23 @@ export default function LobbyDetailsPage({ params }: { params: { id: string } })
                 )}
               </div>
             </div>
+
+            {/* Estatísticas de Matchmaking - apenas para lobbies aguardando */}
+            {lobby.status === 'waiting' && (
+              <MatchmakingStats
+                gameMode={lobby.game_mode}
+                preferredRoles={lobby.preferred_roles}
+                requiredRankMin={lobby.required_rank_min}
+                requiredRankMax={lobby.required_rank_max}
+                playstyleTags={[]} // Lobbies não têm playstyle_tags definidos diretamente
+                currentRankSolo={undefined} // Não aplicável para criador de lobby
+                currentRankFlex={undefined}
+                startTime={lobby.created_at}
+                isLobby={true}
+                lobbySlots={lobby.max_members - lobby.current_members}
+                className={styles.matchmakingStats}
+              />
+            )}
           </div>
 
           {/* Members List */}
@@ -211,17 +661,17 @@ export default function LobbyDetailsPage({ params }: { params: { id: string } })
                   <div className={styles.memberInfo}>
                     <div className={styles.memberAvatar}>
                       {member.profile.icon_url ? (
-                        <img src={member.profile.icon_url} alt={member.profile.nickname} />
+                        <img src={member.profile.icon_url} alt={member.profile.riot_id || member.profile.nickname} />
                       ) : (
                         <div className={styles.avatarPlaceholder}>
-                          {member.profile.nickname.charAt(0).toUpperCase()}
+                          {(member.profile.riot_id || member.profile.nickname).charAt(0).toUpperCase()}
                         </div>
                       )}
                     </div>
                     
                     <div className={styles.memberDetails}>
                       <div className={styles.memberName}>
-                        {member.profile.nickname}
+                        {member.profile.riot_id || member.profile.nickname}
                         {member.user_id === lobby.creator_id && (
                           <span className={styles.creatorBadge}>Líder</span>
                         )}
@@ -233,18 +683,36 @@ export default function LobbyDetailsPage({ params }: { params: { id: string } })
                         </div>
                       )}
                       
-                      {member.profile.rank_flex && (
-                        <div className={styles.memberRank}>
-                          {RANK_LABELS[member.profile.rank_flex]}
-                        </div>
-                      )}
+                      {(() => {
+                        // Mostrar rank do modo de jogo correto
+                        const gameMode = lobby.game_mode
+                        const rank = gameMode === 'ranked_flex' ? member.profile.rank_flex : member.profile.rank_solo
+                        return rank && (
+                          <div className={styles.memberRank}>
+                            {RANK_LABELS[rank]} ({gameMode === 'ranked_flex' ? 'Flex' : 'Solo/Duo'})
+                          </div>
+                        )
+                      })()}
                     </div>
                   </div>
                   
-                  <div className={styles.memberStatus}>
+                  <div className={styles.memberActions}>
                     <span className={`${styles.statusBadge} ${styles.ready}`}>
                       ✓ No Lobby
                     </span>
+                    
+                    {/* Botão de kick - criador pode kickar sempre (exceto si mesmo) */}
+                    {isCreator && member.user_id !== lobby.creator_id && (
+                      <button 
+                        onClick={() => handleKickMember(member.user_id)}
+                        className={styles.kickButton}
+                        title="Remover do lobby"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -261,21 +729,21 @@ export default function LobbyDetailsPage({ params }: { params: { id: string } })
             ))}
           </div>
 
-          {/* Actions for creator */}
-          {isCreator && (
-            <div className={styles.creatorActions}>
-              <h3>Ações do Líder</h3>
-              <div className={styles.actionButtons}>
-                <button className={styles.actionButton}>
-                  Editar Sala
-                </button>
-                <button className={styles.actionButton + ' ' + styles.danger}>
-                  Fechar Sala
-                </button>
-              </div>
-            </div>
-          )}
         </div>
+
+        {/* Modal de Edição */}
+        {showEditModal && (
+          <EditLobbyModal 
+            lobby={lobby}
+            onClose={() => setShowEditModal(false)}
+            onSave={(updatedLobby) => {
+              setLobby(updatedLobby)
+              setShowEditModal(false)
+            }}
+          />
+        )}
+
+        {/* Notificações removidas - devem aparecer apenas na queue */}
       </main>
     </div>
   )

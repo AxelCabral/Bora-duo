@@ -87,7 +87,9 @@ export default function SignupPage() {
               <h1>Conta criada com sucesso!</h1>
               <p>Verifique seu email para confirmar a conta e começar a formar premades.</p>
               <Link href="/login" className={styles.submitButton}>
-                Fazer Login
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M13 7L18 12L13 17M6 12H18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </Link>
             </div>
           </div>

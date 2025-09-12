@@ -140,6 +140,20 @@ export default function CreateLobbyPage() {
         throw createError
       }
 
+      // Adicionar o criador como membro do lobby
+      const { error: memberError } = await supabase
+        .from('lobby_members')
+        .insert([{
+          lobby_id: data.id,
+          user_id: user.id,
+          role: form.preferredRoles[0] // Usar a primeira role preferida
+        }])
+
+      if (memberError) {
+        console.error('Erro ao adicionar criador como membro:', memberError)
+        // Não falhar a criação do lobby por isso
+      }
+
       // Redirecionar para a página do lobby criado
       router.push(`/lobby/${data.id}`)
 

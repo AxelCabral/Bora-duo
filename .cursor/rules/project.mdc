@@ -1,5 +1,5 @@
 ---
-alwaysApply: true
+alwaysApply: false
 ---
 #Sobre o projeto
 
@@ -9,8 +9,8 @@ Vou começar agora a produção prática do meu projeto de TCC, o sistema web "B
 Funcionalidades: 
 - Cadastro de conta / Login ✅
 - Perfil ✅
-- Criar sala (Onde define as preferências de que tipo de player quer encontrar para fechar um lobby)(Etapa antes da Queue) ❌
-- Queue (Fila para encontrar premade) ❌
-- Sair da premade ❌
+- Criar sala (Onde define as preferências de que tipo de player quer encontrar para fechar um lobby)(Etapa antes da Queue) ✅
+- Queue (Fila para encontrar premade) ✅
+- Sair da premade ✅
 - Avaliar companheiros ❌
 - Histórico de premades ❌

@@ -53,6 +53,10 @@ export interface QueueEntry {
   preferred_roles: LolRole[]
   rank_solo?: LolRank
   rank_flex?: LolRank
+  // Filtros de matchmaking
+  required_rank_min?: LolRank
+  required_rank_max?: LolRank
+  playstyle_tags?: string[]
   created_at: string
 }
 

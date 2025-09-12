@@ -1,0 +1,175 @@
+/* Container principal */
+.container {
+  background: linear-gradient(135deg, var(--bg-card-alt) 0%, var(--bg-card) 100%);
+  border: 2px solid var(--primary-20);
+  border-radius: 16px;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 50%, var(--primary) 100%);
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Timer Principal */
+.mainTimer {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--primary-20);
+}
+
+.timerValue {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 0.25rem;
+  text-shadow: 0 2px 8px var(--primary-30);
+}
+
+.timerLabel {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Estimativa */
+.estimate {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--primary-20);
+}
+
+.estimateValue {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.estimateLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.confidence {
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+/* Mensagem motivacional */
+.motivationalMessage {
+  text-align: center;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--primary-05);
+  border-radius: 12px;
+  border: 1px solid var(--primary-15);
+}
+
+.motivationalMessage p {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Loading */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-top: 1rem;
+  background: var(--info-20);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--info);
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--info-30);
+  border-top: 2px solid var(--info);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Error */
+.error {
+  padding: 0.75rem;
+  margin-top: 1rem;
+  background: var(--error-10);
+  border: 1px solid var(--error-30);
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--error);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container {
+    padding: 1.25rem;
+  }
+  
+  .timerValue {
+    font-size: 2rem;
+  }
+  
+  .estimateValue {
+    font-size: 1.5rem;
+  }
+  
+  .motivationalMessage {
+    padding: 0.75rem;
+  }
+  
+  .motivationalMessage p {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 1rem;
+  }
+  
+  .timerValue {
+    font-size: 1.8rem;
+  }
+  
+  .estimateValue {
+    font-size: 1.3rem;
+  }
+  
+  .motivationalMessage p {
+    font-size: 0.85rem;
+  }
+}
