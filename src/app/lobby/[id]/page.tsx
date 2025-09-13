@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase-client'
 import { Lobby, LobbyMember, Profile, LolRank, GameMode } from '@/types/database'
 import MatchmakingStats from '@/components/MatchmakingStats'
 import MatchNotification from '@/components/MatchNotification'
+import EvaluationModal from '@/components/EvaluationModal'
 import { useMatchmakingDetection } from '@/hooks/useMatchmakingDetection'
 import styles from './lobby.module.css'
 
@@ -237,6 +238,7 @@ export default function LobbyDetailsPage({ params }: { params: Promise<{ id: str
   const [isClosingLobby, setIsClosingLobby] = useState(false)
   const [isBeingRedirected, setIsBeingRedirected] = useState(false)
   const [isLeavingLobby, setIsLeavingLobby] = useState(false)
+  const [showEvaluationModal, setShowEvaluationModal] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -273,11 +275,12 @@ export default function LobbyDetailsPage({ params }: { params: Promise<{ id: str
         throw new Error('Lobby não encontrado')
       }
 
-      // Carregar membros (consulta simplificada)
+      // Carregar membros ativos (que não saíram ainda) - apenas para mostrar na interface
       const { data: membersData, error: membersError } = await supabase
         .from('lobby_members')
         .select('*')  // ✅ Consulta simples sem JOIN
         .eq('lobby_id', lobbyId)
+        .is('left_at', null)  // ✅ Apenas membros ativos para a interface do lobby
         .order('joined_at', { ascending: true })
 
       if (membersError) {
@@ -350,6 +353,46 @@ export default function LobbyDetailsPage({ params }: { params: Promise<{ id: str
     
     try {
       const supabase = createClient()
+      
+      // Buscar todos os membros antes de fechar
+      const { data: membersData, error: membersError } = await supabase
+        .from('lobby_members')
+        .select('user_id, joined_at, total_time_minutes, can_evaluate')
+        .eq('lobby_id', lobbyId)
+
+      if (membersError) {
+        console.warn('Erro ao buscar membros:', membersError)
+      }
+
+      // Registrar todos os membros no histórico
+      if (membersData && membersData.length > 0) {
+        const leftAt = new Date().toISOString()
+        const historyRecords = membersData.map(member => {
+          const joinedAt = new Date(member.joined_at)
+          const totalMinutes = Math.floor((new Date(leftAt).getTime() - joinedAt.getTime()) / (1000 * 60))
+          
+          return {
+            user_id: member.user_id,
+            lobby_id: lobbyId,
+            lobby_title: lobby.title,
+            game_mode: lobby.game_mode,
+            joined_at: member.joined_at,
+            left_at: leftAt,
+            total_time_minutes: totalMinutes,
+            participants_count: lobby.current_members
+          }
+        }).filter(record => record.total_time_minutes >= 5) // Apenas quem ficou 5+ minutos
+
+        if (historyRecords.length > 0) {
+          const { error: historyError } = await supabase
+            .from('lobby_history')
+            .insert(historyRecords)
+
+          if (historyError) {
+            console.warn('Erro ao registrar histórico:', historyError)
+          }
+        }
+      }
       
       // Atualizar status do lobby para 'cancelled'
       const { error: updateError } = await supabase
@@ -436,14 +479,66 @@ export default function LobbyDetailsPage({ params }: { params: Promise<{ id: str
     try {
       const supabase = createClient()
       
-      // Remover o membro do lobby
-      const { error } = await supabase
+      // Buscar dados do membro antes de remover
+      const { data: memberData, error: memberError } = await supabase
         .from('lobby_members')
-        .delete()
+        .select('joined_at, total_time_minutes, can_evaluate')
         .eq('lobby_id', lobby.id)
         .eq('user_id', userId)
+        .single()
 
-      if (error) throw error
+      if (memberError) {
+        console.warn('Erro ao buscar dados do membro:', memberError)
+      }
+
+      // Atualizar left_at antes de remover
+      const leftAt = new Date().toISOString()
+      if (memberData) {
+        const { error: updateError } = await supabase
+          .from('lobby_members')
+          .update({
+            left_at: leftAt,
+            total_time_minutes: 0, // Será calculado pelo trigger
+            can_evaluate: true // Permitir avaliação se ficou 20+ minutos
+          })
+          .eq('lobby_id', lobby.id)
+          .eq('user_id', userId)
+
+        if (updateError) {
+          console.warn('Erro ao atualizar dados do membro:', updateError)
+        }
+
+        // Calcular tempo total
+        const joinedAt = new Date(memberData.joined_at)
+        const totalMinutes = Math.floor((new Date(leftAt).getTime() - joinedAt.getTime()) / (1000 * 60))
+
+        // Registrar no histórico se ficou pelo menos 20 minutos
+        if (totalMinutes >= 20) {
+          // Salvar histórico do usuário kickado
+          const { error: historyError } = await supabase
+            .from('lobby_history')
+            .insert({
+              user_id: userId,
+              lobby_id: lobby.id,
+              lobby_title: lobby.title,
+              game_mode: lobby.game_mode,
+              joined_at: memberData.joined_at,
+              left_at: leftAt,
+              total_time_minutes: totalMinutes,
+              participants_count: lobby.current_members
+            })
+
+          if (historyError) {
+            console.warn('Erro ao registrar histórico do kickado:', historyError)
+          }
+
+          // SALVAR HISTÓRICO BILATERAL para todos os outros participantes
+          await saveHistoryForAllParticipants(lobby, userId, memberData.joined_at, leftAt, supabase)
+        }
+      }
+      
+      // NÃO deletar ainda - apenas marcar como saiu
+      // Os dados serão mantidos para avaliação
 
       // Recarregar lobby para mostrar mudanças
       await loadLobby()
@@ -460,21 +555,159 @@ export default function LobbyDetailsPage({ params }: { params: Promise<{ id: str
     setIsLeavingLobby(true)
     try {
       const supabase = createClient()
-      const { error } = await supabase
+      
+      // Buscar dados do membro antes de sair
+      const { data: memberData, error: memberError } = await supabase
         .from('lobby_members')
-        .delete()
+        .select('joined_at, total_time_minutes, can_evaluate')
         .eq('lobby_id', lobby.id)
         .eq('user_id', user.id)
-      
-      if (error) throw error
+        .single()
+
+      if (memberError) throw memberError
+
+      // Atualizar left_at e total_time_minutes antes de sair
+      const leftAt = new Date().toISOString()
+      const { error: updateError } = await supabase
+        .from('lobby_members')
+        .update({
+          left_at: leftAt,
+          total_time_minutes: 0, // Será calculado pelo trigger
+          can_evaluate: true // Permitir avaliação se ficou 20+ minutos
+        })
+        .eq('lobby_id', lobby.id)
+        .eq('user_id', user.id)
+
+      if (updateError) throw updateError
+
+      // Calcular tempo total
+      const joinedAt = new Date(memberData.joined_at)
+      const totalMinutes = Math.floor((new Date(leftAt).getTime() - joinedAt.getTime()) / (1000 * 60))
+
+      // Registrar no histórico se ficou pelo menos 20 minutos
+      if (totalMinutes >= 20) {
+        // Salvar MEU histórico
+        const { error: historyError } = await supabase
+          .from('lobby_history')
+          .insert({
+            user_id: user.id,
+            lobby_id: lobby.id,
+            lobby_title: lobby.title,
+            game_mode: lobby.game_mode,
+            joined_at: memberData.joined_at,
+            left_at: leftAt,
+            total_time_minutes: totalMinutes,
+            participants_count: lobby.current_members
+          })
+
+        if (historyError) {
+          console.warn('Erro ao registrar meu histórico:', historyError)
+        }
+
+        // SALVAR HISTÓRICO BILATERAL - apenas se eu saí (não duplicar)
+        await saveHistoryForAllParticipants(lobby, user.id, memberData.joined_at, leftAt, supabase)
+      }
+
+      // NÃO deletar ainda - apenas marcar como saiu
+      // Os dados serão mantidos para avaliação
       
       console.log('🚪 Usuário saiu do lobby com sucesso')
-      router.push('/lobby/queue')
+      
+      // Verificar se pode avaliar (20+ minutos)
+      if (totalMinutes >= 20) {
+        // Mostrar modal de avaliação
+        setShowEvaluationModal(true)
+      } else {
+        // Redirecionar direto para queue
+        router.push('/lobby/queue')
+      }
     } catch (err) {
       console.error('Erro ao sair do lobby:', err)
       setError('Erro ao sair do lobby. Tente novamente.')
     } finally {
       setIsLeavingLobby(false)
+    }
+  }
+
+  const handleEvaluationComplete = () => {
+    setShowEvaluationModal(false)
+    router.push('/lobby/queue')
+  }
+
+  // Função para salvar histórico bilateral de todos os participantes
+  const saveHistoryForAllParticipants = async (lobby: any, leavingUserId: string, myJoinedAt: string, myLeftAt: string, supabase: any) => {
+    try {
+      // Buscar todos os outros membros do lobby
+      const { data: allMembers, error: membersError } = await supabase
+        .from('lobby_members')
+        .select('user_id, joined_at, left_at')
+        .eq('lobby_id', lobby.id)
+        .neq('user_id', leavingUserId)
+
+      if (membersError || !allMembers || allMembers.length === 0) {
+        console.log('Nenhum outro membro encontrado para histórico bilateral')
+        return
+      }
+
+      const myJoinedAtDate = new Date(myJoinedAt)
+      const myLeftAtDate = new Date(myLeftAt)
+
+      // Verificar históricos existentes em lote
+      const { data: existingHistories } = await supabase
+        .from('lobby_history')
+        .select('user_id')
+        .eq('lobby_id', lobby.id)
+        .in('user_id', allMembers.map((m: any) => m.user_id))
+
+      const existingUserIds = new Set(existingHistories?.map((h: any) => h.user_id) || [])
+
+      // Para cada membro, verificar se compartilhou 1+ minuto comigo
+      const historyRecords = []
+      for (const member of allMembers) {
+        // Pular se já tem histórico
+        if (existingUserIds.has(member.user_id)) {
+          continue
+        }
+
+        const memberJoinedAt = new Date(member.joined_at)
+        const memberLeftAt = member.left_at ? new Date(member.left_at) : new Date()
+
+        // Calcular sobreposição
+        const overlapStart = new Date(Math.max(myJoinedAtDate.getTime(), memberJoinedAt.getTime()))
+        const overlapEnd = new Date(Math.min(myLeftAtDate.getTime(), memberLeftAt.getTime()))
+        const overlapMinutes = Math.max(0, Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60)))
+
+        // Se compartilharam 20+ minutos, salvar no histórico do membro
+        if (overlapMinutes >= 20) {
+          historyRecords.push({
+            user_id: member.user_id,
+            lobby_id: lobby.id,
+            lobby_title: lobby.title,
+            game_mode: lobby.game_mode,
+            joined_at: member.joined_at,
+            left_at: member.left_at || new Date().toISOString(),
+            total_time_minutes: Math.floor((memberLeftAt.getTime() - memberJoinedAt.getTime()) / (1000 * 60)),
+            participants_count: lobby.current_members
+          })
+        }
+      }
+
+      // Inserir todos os históricos de uma vez
+      if (historyRecords.length > 0) {
+        const { error: insertError } = await supabase
+          .from('lobby_history')
+          .insert(historyRecords)
+
+        if (insertError) {
+          console.warn('Erro ao inserir histórico bilateral:', insertError)
+        } else {
+          console.log(`✅ Histórico bilateral salvo para ${historyRecords.length} participantes`)
+        }
+      } else {
+        console.log('Nenhum novo histórico para salvar (todos já existem)')
+      }
+    } catch (err) {
+      console.error('Erro na função de histórico bilateral:', err)
     }
   }
 
@@ -740,6 +973,19 @@ export default function LobbyDetailsPage({ params }: { params: Promise<{ id: str
               setLobby(updatedLobby)
               setShowEditModal(false)
             }}
+          />
+        )}
+
+        {/* Modal de Avaliação */}
+        {showEvaluationModal && lobby && (
+          <EvaluationModal
+            lobbyId={lobby.id}
+            lobbyTitle={lobby.title}
+            onClose={() => {
+              setShowEvaluationModal(false)
+              router.push('/lobby/queue')
+            }}
+            onComplete={handleEvaluationComplete}
           />
         )}
 

@@ -4,12 +4,14 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase-client'
 import styles from './lobby.module.css'
 
 export default function LobbyPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  const [checkingCurrentLobby, setCheckingCurrentLobby] = useState(true)
 
   useEffect(() => {
     setMounted(true)
@@ -21,11 +23,73 @@ export default function LobbyPage() {
     }
   }, [user, loading, router])
 
-  if (loading || !mounted) {
+  // Verificar se o usuário já está em um lobby
+  useEffect(() => {
+    if (!user || loading || !mounted) return
+
+    const checkCurrentLobby = async () => {
+      try {
+        const supabase = createClient()
+        
+        // Verificar se o usuário é membro de algum lobby ativo
+        const { data: memberData, error: memberError } = await supabase
+          .from('lobby_members')
+          .select(`
+            lobby_id,
+            lobbies!inner(
+              id,
+              status,
+              title
+            )
+          `)
+          .eq('user_id', user.id)
+          .in('lobbies.status', ['waiting', 'full'])
+          .maybeSingle()
+
+        if (memberError) {
+          console.error('Erro ao verificar lobby atual:', memberError)
+        }
+
+        if (memberData) {
+          console.log('🏠 Usuário já está no lobby:', memberData.lobby_id)
+          router.push(`/lobby/${memberData.lobby_id}`)
+          return
+        }
+
+        // Verificar se o usuário é criador de algum lobby ativo
+        const { data: creatorData, error: creatorError } = await supabase
+          .from('lobbies')
+          .select('id, status, title')
+          .eq('creator_id', user.id)
+          .in('status', ['waiting', 'full'])
+          .maybeSingle()
+
+        if (creatorError) {
+          console.error('Erro ao verificar lobby criado:', creatorError)
+        }
+
+        if (creatorData) {
+          console.log('🏠 Usuário é criador do lobby:', creatorData.id)
+          router.push(`/lobby/${creatorData.id}`)
+          return
+        }
+
+        console.log('✅ Usuário não está em nenhum lobby ativo')
+      } catch (err) {
+        console.error('Erro ao verificar lobby atual:', err)
+      } finally {
+        setCheckingCurrentLobby(false)
+      }
+    }
+
+    checkCurrentLobby()
+  }, [user, loading, mounted, router])
+
+  if (loading || !mounted || checkingCurrentLobby) {
     return (
       <div className={styles.loading}>
         <div className={styles.spinner}></div>
-        <p>Carregando...</p>
+        <p>{checkingCurrentLobby ? 'Verificando lobby atual...' : 'Carregando...'}</p>
       </div>
     )
   }

@@ -44,6 +44,9 @@ export interface LobbyMember {
   user_id: string
   role?: LolRole
   joined_at: string
+  left_at?: string
+  total_time_minutes?: number
+  can_evaluate?: boolean
 }
 
 export interface QueueEntry {
@@ -57,6 +60,31 @@ export interface QueueEntry {
   required_rank_min?: LolRank
   required_rank_max?: LolRank
   playstyle_tags?: string[]
+  created_at: string
+}
+
+export interface UserEvaluation {
+  id: string
+  evaluator_id: string
+  evaluated_id: string
+  lobby_id: string
+  rating: number
+  comment?: string
+  is_report: boolean
+  report_reason?: string
+  created_at: string
+}
+
+export interface LobbyHistory {
+  id: string
+  user_id: string
+  lobby_id: string
+  lobby_title: string
+  game_mode: GameMode
+  joined_at: string
+  left_at: string
+  total_time_minutes: number
+  participants_count: number
   created_at: string
 }
 
@@ -82,6 +110,16 @@ export interface Database {
         Row: QueueEntry
         Insert: Omit<QueueEntry, 'id' | 'created_at'>
         Update: Partial<Omit<QueueEntry, 'id' | 'user_id' | 'created_at'>>
+      }
+      user_evaluations: {
+        Row: UserEvaluation
+        Insert: Omit<UserEvaluation, 'id' | 'created_at'>
+        Update: Partial<Omit<UserEvaluation, 'id' | 'evaluator_id' | 'evaluated_id' | 'lobby_id' | 'created_at'>>
+      }
+      lobby_history: {
+        Row: LobbyHistory
+        Insert: Omit<LobbyHistory, 'id' | 'created_at'>
+        Update: Partial<Omit<LobbyHistory, 'id' | 'user_id' | 'lobby_id' | 'created_at'>>
       }
     }
   }

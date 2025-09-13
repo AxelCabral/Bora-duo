@@ -297,6 +297,158 @@
   100% { transform: rotate(360deg); }
 }
 
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xl);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.tab {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: var(--space-md) var(--space-lg);
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  transition: var(--transition);
+}
+
+.tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* History Section */
+.historySection {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+}
+
+.historySection h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.emptyHistory {
+  text-align: center;
+  padding: var(--space-xl);
+  color: var(--text-secondary);
+}
+
+.emptyHistory p {
+  margin-bottom: var(--space-sm);
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.historyItem {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  padding: var(--space-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-lg);
+  transition: var(--transition);
+}
+
+.historyItem:hover {
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(200, 155, 60, 0.1);
+}
+
+.historyInfo {
+  flex: 1;
+}
+
+.historyInfo h4 {
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+}
+
+.historyMeta {
+  display: flex;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.historyMeta span {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.gameMode {
+  color: var(--primary) !important;
+  font-weight: 500;
+}
+
+.duration {
+  color: var(--accent) !important;
+  font-weight: 500;
+}
+
+.participants {
+  color: var(--text-secondary) !important;
+}
+
+.historyDates {
+  display: flex;
+  gap: var(--space-lg);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.historyActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.evaluateButton {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: var(--bg-primary);
+  border: none;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.evaluateButton:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .main {
@@ -322,5 +474,29 @@
   
   .userInfo {
     gap: var(--space-md);
+  }
+
+  .historyItem {
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .historyMeta {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .historyDates {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .historyActions {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .evaluateButton {
+    width: 100%;
   }
 }
