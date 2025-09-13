@@ -31,7 +31,7 @@ export default function LobbyPage() {
       try {
         const supabase = createClient()
         
-        // Verificar se o usuário é membro de algum lobby ativo
+        // Verificar se o usuário é membro de algum lobby ativo (não saiu ainda)
         const { data: memberData, error: memberError } = await supabase
           .from('lobby_members')
           .select(`
@@ -43,6 +43,7 @@ export default function LobbyPage() {
             )
           `)
           .eq('user_id', user.id)
+          .is('left_at', null) // Só considerar se ainda não saiu
           .in('lobbies.status', ['waiting', 'full'])
           .maybeSingle()
 
